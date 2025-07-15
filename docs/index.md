@@ -404,9 +404,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Support
 
-- **Documentation**: [https://llamasearchai.github.io/OpenGenAI/](https://llamasearchai.github.io/OpenGenAI/)
-- **Issues**: [GitHub Issues](https://github.com/llamasearchai/OpenGenAI/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/llamasearchai/OpenGenAI/discussions)
+- **Documentation**: [https://opengenai.llamasearch.ai](https://opengenai.llamasearch.ai)
+- **Issues**: [GitHub Issues](https://github.com/nikjois/opengenai/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/nikjois/opengenai/discussions)
 - **Email**: nikjois@llamasearch.ai
 
 ## Roadmap

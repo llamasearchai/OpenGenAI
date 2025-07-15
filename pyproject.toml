@@ -121,11 +121,11 @@ prod = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/nikjois/opengenai"
-Documentation = "https://opengenai.llamasearch.ai"
-Repository = "https://github.com/nikjois/opengenai"
-Issues = "https://github.com/nikjois/opengenai/issues"
-Changelog = "https://github.com/nikjois/opengenai/releases"
+Homepage = "https://github.com/llamasearchai/OpenGenAI"
+Documentation = "https://llamasearchai.github.io/OpenGenAI/"
+Repository = "https://github.com/llamasearchai/OpenGenAI"
+Issues = "https://github.com/llamasearchai/OpenGenAI/issues"
+Changelog = "https://github.com/llamasearchai/OpenGenAI/releases"
 
 [project.scripts]
 opengenai = "opengenai.cli.main:app"
