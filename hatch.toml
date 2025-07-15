@@ -1,0 +1,111 @@
+[envs.default]
+dependencies = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.12.0",
+    "pytest-xdist>=3.5.0",
+    "black>=23.12.0",
+    "ruff>=0.1.0",
+    "mypy>=1.7.0",
+    "ipython>=8.18.0",
+    "rich>=13.7.0",
+]
+
+[envs.default.scripts]
+test = "pytest {args:tests}"
+test-cov = "pytest --cov=opengenai --cov-report=term-missing --cov-report=html --cov-report=xml {args:tests}"
+test-unit = "pytest tests/unit -v"
+test-integration = "pytest tests/integration -v -m integration"
+test-e2e = "pytest tests/e2e -v -m e2e"
+test-parallel = "pytest -n auto {args:tests}"
+test-benchmark = "pytest --benchmark-only {args:tests}"
+lint = [
+    "black --check {args:.}",
+    "ruff check {args:.}",
+    "mypy {args:src/opengenai}",
+]
+fmt = [
+    "black {args:.}",
+    "ruff check --fix {args:.}",
+]
+all = [
+    "fmt",
+    "lint", 
+    "test-cov",
+]
+clean = [
+    "rm -rf build dist .eggs *.egg-info",
+    "rm -rf htmlcov .coverage .coverage.*",
+    "rm -rf .pytest_cache .mypy_cache",
+    "find . -type d -name __pycache__ -exec rm -rf {} +",
+]
+
+[envs.docs]
+dependencies = [
+    "mkdocs>=1.5.0",
+    "mkdocs-material>=9.5.0",
+    "mkdocstrings[python]>=0.24.0",
+    "mkdocs-mermaid2-plugin>=1.1.0",
+]
+
+[envs.docs.scripts]
+build = "mkdocs build --clean"
+serve = "mkdocs serve"
+deploy = "mkdocs gh-deploy --force"
+
+[envs.security]
+dependencies = [
+    "bandit[toml]>=1.7.5",
+    "safety>=3.0.0",
+    "semgrep>=1.45.0",
+]
+
+[envs.security.scripts]
+bandit = "bandit -r src/opengenai"
+safety = "safety check"
+semgrep = "semgrep --config=auto src/"
+all = ["bandit", "safety"]
+
+[envs.dev]
+dependencies = [
+    "ipython>=8.18.0",
+    "ipdb>=0.13.0",
+    "jupyter>=1.0.0",
+    "pre-commit>=3.6.0",
+    "rich>=13.7.0",
+]
+
+[envs.dev.scripts]
+install-hooks = "pre-commit install"
+run-hooks = "pre-commit run --all-files"
+notebook = "jupyter lab"
+
+[envs.prod]
+dependencies = []
+
+[envs.prod.scripts]
+build = "python -m build"
+check = "twine check dist/*"
+upload = "twine upload dist/*"
+upload-test = "twine upload --repository testpypi dist/*"
+
+[version]
+source = "vcs"
+raw-options = { local_scheme = "no-local-version" }
+
+[build.targets.sdist]
+exclude = [
+    "/.github",
+    "/docs",
+    "/.vscode",
+    "/.idea",
+    "/htmlcov",
+    "/.coverage*",
+    "/.pytest_cache",
+    "/.mypy_cache",
+    "/.tox",
+]
+
+[build.targets.wheel]
+packages = ["src/opengenai"]

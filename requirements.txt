@@ -1,0 +1,12 @@
+fastapi
+pydantic
+pydantic-settings
+openai
+typer[all]
+uvicorn
+structlog
+python-dotenv
+pytest
+httpx
+respx
+pytest-asyncio 

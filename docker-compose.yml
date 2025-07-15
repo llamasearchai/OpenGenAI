@@ -1,0 +1,232 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: opengenai_postgres
+    environment:
+      POSTGRES_DB: opengenai
+      POSTGRES_USER: opengenai
+      POSTGRES_PASSWORD: opengenai_password
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U opengenai -d opengenai"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - opengenai_network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: opengenai_redis
+    command: redis-server --appendonly yes --requirepass redis_password
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - opengenai_network
+
+  # OpenGenAI API (Development)
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: opengenai_api
+    environment:
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - DATABASE_URL=postgresql://opengenai:opengenai_password@postgres:5432/opengenai
+      - REDIS_URL=redis://:redis_password@redis:6379/0
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-your_api_key_here}
+      - OPENAI_ORGANIZATION_ID=${OPENAI_ORGANIZATION_ID:-your_org_id}
+      - OPENAI_PROJECT_ID=${OPENAI_PROJECT_ID:-your_project_id}
+      - SECRET_KEY=dev-secret-key-change-in-production
+      - LOG_LEVEL=DEBUG
+    volumes:
+      - .:/app
+      - /app/__pycache__
+      - /app/src/opengenai/__pycache__
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - opengenai_network
+    restart: unless-stopped
+
+  # OpenGenAI API (Production)
+  api-prod:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: base
+    container_name: opengenai_api_prod
+    environment:
+      - ENVIRONMENT=production
+      - DEBUG=false
+      - DATABASE_URL=postgresql://opengenai:opengenai_password@postgres:5432/opengenai
+      - REDIS_URL=redis://:redis_password@redis:6379/0
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_ORGANIZATION_ID=${OPENAI_ORGANIZATION_ID}
+      - OPENAI_PROJECT_ID=${OPENAI_PROJECT_ID}
+      - SECRET_KEY=${SECRET_KEY}
+      - LOG_LEVEL=INFO
+    ports:
+      - "8001:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - opengenai_network
+    restart: unless-stopped
+    profiles:
+      - production
+
+  # Testing Service
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: testing
+    container_name: opengenai_test
+    environment:
+      - ENVIRONMENT=testing
+      - DATABASE_URL=postgresql://opengenai:opengenai_password@postgres:5432/opengenai_test
+      - REDIS_URL=redis://:redis_password@redis:6379/1
+      - OPENAI_API_KEY=sk-test-key-1234567890abcdef1234567890abcdef1234567890abcdef1234
+      - SECRET_KEY=test-secret-key
+      - LOG_LEVEL=DEBUG
+    volumes:
+      - .:/app
+      - test_coverage:/app/htmlcov
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - opengenai_network
+    profiles:
+      - testing
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: opengenai_nginx
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - api
+    networks:
+      - opengenai_network
+    profiles:
+      - production
+
+  # Monitoring with Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: opengenai_prometheus
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    networks:
+      - opengenai_network
+    profiles:
+      - monitoring
+
+  # Grafana Dashboard
+  grafana:
+    image: grafana/grafana:latest
+    container_name: opengenai_grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - opengenai_network
+    profiles:
+      - monitoring
+
+  # Database Migration Service
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: opengenai_migrate
+    environment:
+      - DATABASE_URL=postgresql://opengenai:opengenai_password@postgres:5432/opengenai
+    command: ["python", "-m", "alembic", "upgrade", "head"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - opengenai_network
+    profiles:
+      - migration
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  test_coverage:
+    driver: local
+
+networks:
+  opengenai_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16 
