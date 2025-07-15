@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/nikjois/opengenai/main/opengenailogo.png" alt="OpenGenAI Logo" width="400"/>
+  <img src="opengenailogo.svg" alt="OpenGenAI Logo" width="400"/>
 </div>
 
 # OpenGenAI
